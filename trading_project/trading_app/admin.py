@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import UserProfile, UserAdditionalInfo, AssetHistory
 
-# Register your models here.
+admin.site.register(UserProfile)
+admin.site.register(UserAdditionalInfo)
+admin.site.register(AssetHistory)
