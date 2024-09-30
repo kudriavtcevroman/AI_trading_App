@@ -2,15 +2,98 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Регистрация</title>
+    <style>
+        .required-field::after {
+            content: " *";
+            color: red;
+        }
+        .help-text {
+            color: red;
+        }
+    </style>
 </head>
 <body>
     <h2>Регистрация</h2>
 
     <form method="post">
         {% csrf_token %}
-        {{ form.as_p }}
+        {{ form.non_field_errors }}
+        <div class="required-field">
+            {{ form.username.label_tag }}<br>
+            {{ form.username }}
+            {{ form.username.errors }}
+        </div>
+        <div class="required-field">
+            {{ form.email.label_tag }}<br>
+            {{ form.email }}
+            {{ form.email.errors }}
+        </div>
+        <div class="required-field">
+            {{ form.password1.label_tag }}<br>
+            {{ form.password1 }}
+            {{ form.password1.errors }}
+        </div>
+        <div class="required-field">
+            {{ form.password2.label_tag }}<br>
+            {{ form.password2 }}
+            {{ form.password2.errors }}
+        </div>
+        <div class="required-field">
+            {{ form.first_name.label_tag }}<br>
+            {{ form.first_name }}
+            {{ form.first_name.errors }}
+        </div>
+        <div class="required-field">
+            {{ form.last_name.label_tag }}<br>
+            {{ form.last_name }}
+            {{ form.last_name.errors }}
+        </div>
+        <div>
+            {{ form.phone_number.label_tag }}<br>
+            {{ form.phone_number }}
+            {{ form.phone_number.errors }}
+        </div>
+        <div class="required-field">
+            {{ form.birth_date.label_tag }}<br>
+            {{ form.birth_date }}
+            {{ form.birth_date.errors }}
+        </div>
+        <div class="required-field">
+            {{ form.gender.label_tag }}<br>
+            {{ form.gender }}
+            {{ form.gender.errors }}
+        </div>
+        <!-- Добавляем необязательные поля -->
+        <div>
+            {{ form.middle_name.label_tag }}<br>
+            {{ form.middle_name }}
+            {{ form.middle_name.errors }}
+        </div>
+        <div>
+            {{ form.nickname.label_tag }}<br>
+            {{ form.nickname }}
+            {{ form.nickname.errors }}
+        </div>
+        <div>
+            {{ form.country.label_tag }}<br>
+            {{ form.country }}
+            {{ form.country.errors }}
+        </div>
+        <div>
+            {{ form.city.label_tag }}<br>
+            {{ form.city }}
+            {{ form.city.errors }}
+        </div>
+        <div>
+            {{ form.telegram.label_tag }}<br>
+            {{ form.telegram }}
+            {{ form.telegram.errors }}
+        </div>
+
+        <!-- Сообщение о необходимости заполнения обязательных полей -->
+        <p class="help-text">Поля, помеченные *, обязательны для заполнения.</p>
+
         <button type="submit">Зарегистрироваться</button>
     </form>
 

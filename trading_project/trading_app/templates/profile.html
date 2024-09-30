@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Личный кабинет</title>
+</head>
+<h1>Личный кабинет</h1>
+
+<!-- Отображаем ID пользователя -->
+<p>ID пользователя: {{ user.id }}</p>
+
+<!-- Информация о профиле -->
+<p>Имя: {{ user.userprofile.first_name }}</p>
+<p>Фамилия: {{ user.userprofile.last_name }}</p>
+<p>Email: {{ user.userprofile.email }}</p>
+<p>Телефон: {{ user.userprofile.phone_number|default:"Не указан" }}</p>
+<p>Дата рождения: {{ user.userprofile.birth_date }}</p>
+<p>Пол: {{ user.userprofile.get_gender_display }}</p>
+
+<!-- Необязательные данные -->
+<p>Отчество: {{ user.userprofile.useradditionalinfo.middle_name|default:"Не указано" }}</p>
+<p>Никнейм: {{ user.userprofile.useradditionalinfo.nickname|default:"Не указан" }}</p>
+<p>Страна: {{ user.userprofile.useradditionalinfo.country|default:"Не указана" }}</p>
+<p>Город: {{ user.userprofile.useradditionalinfo.city|default:"Не указан" }}</p>
+<p>Telegram: {{ user.userprofile.useradditionalinfo.telegram|default:"Не указан" }}</p>
+
+<!-- Кнопка редактирования данных -->
+<a href="{% url 'edit_profile' %}">Редактировать данные</a>
+
+<!-- Кнопка для выхода из аккаунта -->
+<form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit">Выйти</button>
+</form>
+    <form method="post" action="{% url 'delete_account' %}">
+        {% csrf_token %}
+        <button type="submit">Удалить аккаунт</button>
+    </form>
+</body>
+</html>
