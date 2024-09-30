@@ -6,6 +6,9 @@ from django.contrib.auth.decorators import login_required
 from .models import UserProfile, UserAdditionalInfo
 from .forms import CustomUserCreationForm, UserProfileForm, UserAdditionalInfoForm  # Форма для редактирования профиля
 
+def home_view(request):
+    return render(request, 'home.html')
+
 # Регистрация пользователя
 def register_view(request):
     if request.method == "POST":
@@ -36,7 +39,7 @@ def register_view(request):
 
             messages.success(request, f"Аккаунт {user.username} был успешно создан.")
             login(request, user)
-            return redirect("profile")
+            return redirect("home")
     else:
         form = CustomUserCreationForm()
     return render(request, "register.html", {"form": form})
@@ -51,7 +54,7 @@ def login_view(request):
             user = authenticate(username=username, password=password)
             if user is not None:
                 login(request, user)
-                return redirect("profile")  # Замените "home" на ваше целевое представление после входа
+                return redirect("home")  # Замените "home" на ваше целевое представление после входа
             else:
                 messages.error(request, "Неправильное имя пользователя или пароль.")
         else:
@@ -70,35 +73,36 @@ def logout_view(request):
 @login_required(login_url='/login/')
 def profile_view(request):
     user_profile = request.user.userprofile
-    return render(request, 'profile.html', {'user_profile': user_profile})
+    user_additional_info, created = UserAdditionalInfo.objects.get_or_create(user_profile=user_profile)
 
-# Редактирование данных пользователя
-@login_required(login_url='/login/')
-def profile_edit_view(request):
-    user_profile = request.user.userprofile
     if request.method == "POST":
-        form = UserProfileForm(request.POST, instance=user_profile)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Ваш профиль был обновлен.")
-            return redirect('profile')
-    else:
-        form = UserProfileForm(instance=user_profile)
-    return render(request, 'profile_edit.html', {'form': form})
+        profile_form = UserProfileForm(request.POST, instance=user_profile)
+        additional_info_form = UserAdditionalInfoForm(request.POST, instance=user_additional_info)
 
-# Смена пароля
-@login_required(login_url='/login/')
-def change_password_view(request):
-    if request.method == "POST":
-        form = PasswordChangeForm(user=request.user, data=request.POST)
-        if form.is_valid():
-            user = form.save()
-            update_session_auth_hash(request, user)  # Обновляем сессию после смены пароля
-            messages.success(request, "Пароль был успешно изменен.")
+        if profile_form.is_valid() and additional_info_form.is_valid():
+            profile_form.save()
+            additional_info_form.save()
+            messages.success(request, "Изменения успешно сохранены.")
             return redirect('profile')
+        else:
+            # В случае ошибки выводим уведомления
+            for field, errors in profile_form.errors.items():
+                for error in errors:
+                    messages.error(request, f"Ошибка в поле {field}: {error}")
+            for field, errors in additional_info_form.errors.items():
+                for error in errors:
+                    messages.error(request, f"Ошибка в поле {field}: {error}")
+
     else:
-        form = PasswordChangeForm(user=request.user)
-    return render(request, 'change_password.html', {'form': form})
+        profile_form = UserProfileForm(instance=user_profile)
+        additional_info_form = UserAdditionalInfoForm(instance=user_additional_info)
+
+    return render(request, 'profile.html', {
+        'profile_form': profile_form,
+        'additional_info_form': additional_info_form,
+        'user_profile': user_profile,
+        'user_additional_info': user_additional_info,
+    })
 
 # Удаление аккаунта
 @login_required(login_url='/login/')

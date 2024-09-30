@@ -130,3 +130,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'login'
 
 LOGOUT_REDIRECT_URL = '/login/'  # После выхода перенаправлять на страницу авторизации
+
+# Формат даты для всего приложения
+DATE_INPUT_FORMATS = ['%d.%m.%Y', '%Y-%m-%d']

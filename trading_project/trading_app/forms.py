@@ -2,7 +2,8 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from .models import UserProfile, UserAdditionalInfo
-
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 class CustomUserCreationForm(UserCreationForm):
     # Поля из модели User
@@ -34,11 +35,24 @@ class CustomUserCreationForm(UserCreationForm):
                   'middle_name', 'nickname', 'country', 'city', 'telegram']
 
 class UserProfileForm(forms.ModelForm):
+    birth_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(format='%d.%m.%Y', attrs={'type': 'date'}),
+        label='Дата рождения'
+    )
+
     class Meta:
         model = UserProfile
         fields = ['first_name', 'last_name', 'email', 'phone_number', 'birth_date', 'gender']
 
+    # Валидация поля birth_date, чтобы оно не было в будущем
+    def clean_birth_date(self):
+        birth_date = self.cleaned_data.get('birth_date')
+        if birth_date > timezone.now().date():
+            raise ValidationError("Дата рождения не может быть в будущем.")
+        return birth_date
+
 class UserAdditionalInfoForm(forms.ModelForm):
     class Meta:
         model = UserAdditionalInfo
-        fields = ['middle_name', 'nickname', 'country', 'city', 'telegram']
+        fields = ['middle_name', 'nickname', 'telegram', 'country', 'city']
