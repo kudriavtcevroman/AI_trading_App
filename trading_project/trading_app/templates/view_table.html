@@ -1,0 +1,25 @@
+<h2>Просмотр данных для {{ data.first.asset_name }}</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>Open</th>
+            <th>High</th>
+            <th>Low</th>
+            <th>Close</th>
+            <th>Volume</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in data %}
+        <tr>
+            <td>{{ row.timestamp|date:"d.m.Y H:i" }}</td>
+            <td>{{ row.open }}</td>
+            <td>{{ row.high }}</td>
+            <td>{{ row.low }}</td>
+            <td>{{ row.close }}</td>
+            <td>{{ row.volume }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

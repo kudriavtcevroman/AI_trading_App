@@ -1,7 +1,6 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
+{% extends 'base.html' %}
+
+{% block content %}
     <title>Личный кабинет</title>
     <style>
         .hidden {
@@ -45,7 +44,6 @@
             saveButton.classList.toggle('hidden');
         }
     </script>
-</head>
 <body>
 
     <h1>Личный кабинет</h1>
@@ -167,4 +165,4 @@
     </form>
 
 </body>
-</html>
+{% endblock %}
