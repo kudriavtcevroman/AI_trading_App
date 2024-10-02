@@ -1,36 +1,28 @@
 import requests
 import pandas as pd
-from datetime import datetime
 from sqlalchemy import create_engine
+from datetime import datetime
 
 class BinanceModel:
     def __init__(self, db_url='sqlite:///binance_data.db'):
         self.engine = create_engine(db_url)
 
     def get_symbols(self):
-        # Получение всех торговых пар
-        url = "https://api.binance.com/api/v3/exchangeInfo"
-        response = requests.get(url)
-        data = response.json()
-        symbols = [item['symbol'] for item in data['symbols']]
-        return symbols
-
-    def get_available_dates(self, symbol, interval):
-        # Получение первого доступного timestamp и текущей даты
-        url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit=1&startTime=0"
-        response = requests.get(url)
-        data = response.json()
-
-        if not data or 'code' in data:
-            return None, None
-
-        start_time = pd.to_datetime(data[0][0], unit='ms').date()  # Первый доступный день
-        end_time = datetime.now().date()  # Текущая дата
-
-        return start_time, end_time
+        try:
+            url = "https://api.binance.com/api/v3/exchangeInfo"
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                symbols = [item['symbol'] for item in data['symbols']]
+                return symbols
+            else:
+                print(f"Ошибка получения символов: {response.status_code}")
+                return []
+        except Exception as e:
+            print(f"Ошибка при запросе к Binance API: {str(e)}")
+            return []
 
     def get_historical_data(self, symbol, interval, start_time, end_time):
-        # Получаем исторические данные
         url = f"https://api.binance.com/api/v3/klines"
         all_data = []
         current_start_time = int(pd.Timestamp(start_time).timestamp() * 1000)
@@ -45,6 +37,10 @@ class BinanceModel:
                 'limit': 1000
             }
             response = requests.get(url, params=params)
+            if response.status_code != 200:
+                print(f"Ошибка API Binance: {response.status_code} - {response.text}")
+                break
+
             data = response.json()
             if not data:
                 break
@@ -56,6 +52,7 @@ class BinanceModel:
                 break
 
         if not all_data:
+            print(f"Нет данных для периода {start_time} - {end_time} для {symbol}.")
             return pd.DataFrame()
 
         df = pd.DataFrame(all_data, columns=[
@@ -63,8 +60,8 @@ class BinanceModel:
             'close_time', 'quote_asset_volume', 'number_of_trades',
             'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'
         ])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms').dt.strftime('%d.%m.%Y %H:%M:%S')
-        df['close_time'] = pd.to_datetime(df['close_time'], unit='ms').dt.strftime('%d.%m.%Y %H:%M:%S')
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
+        df['close_time'] = pd.to_datetime(df['close_time'], unit='ms').dt.strftime('%Y-%m-%d %H:%M:%S')
         return df
 
     def save_to_db(self, df, table_name):

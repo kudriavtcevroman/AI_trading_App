@@ -1,13 +1,14 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, logout, update_session_auth_hash
-from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordChangeForm
+from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from .models import UserProfile, UserAdditionalInfo
-from .forms import CustomUserCreationForm, UserProfileForm, UserAdditionalInfoForm  # Форма для редактирования профиля
-from django.http import JsonResponse
+from django.contrib.auth.forms import AuthenticationForm
+from .models import UserProfile, UserAdditionalInfo, AssetHistory
+from .forms import CustomUserCreationForm, UserProfileForm, UserAdditionalInfoForm
 from .binance_service import BinanceModel
-from .models import AssetHistory
+from django.http import JsonResponse
+import pandas as pd
+from datetime import datetime
 
 @login_required(login_url='/login/')
 def home_view(request):
@@ -140,40 +141,11 @@ def edit_profile(request):
     })
 
 
-binance = BinanceModel()
+binance = BinanceModel()  # Инициализация класса здесь, чтобы не повторять в функциях
 
+@login_required(login_url='/login/')
 def upload_training_data(request):
-    # Отображаем страницу с загрузкой данных
-    if request.method == 'POST':
-        symbol = request.POST.get('symbol')
-        interval = request.POST.get('interval')
-        start_date = request.POST.get('start_date')
-        end_date = request.POST.get('end_date')
-
-        if not all([symbol, interval, start_date, end_date]):
-            return render(request, 'upload_training_data.html', {'error': 'Все поля обязательны'})
-
-        data = binance.get_historical_data(symbol, interval, start_date, end_date)
-        if data.empty:
-            return render(request, 'upload_training_data.html', {'error': 'Нет данных для выбранного диапазона'})
-
-        # Сохраняем данные в базу данных
-        table_name = f"{symbol}_{interval}_{start_date}_{end_date}"
-        binance.save_to_db(data, table_name)
-
-        # Добавляем данные в модель AssetHistory для пользователя
-        AssetHistory.objects.create(
-            user=request.user.userprofile,
-            asset_name=symbol,
-            timestamp=start_date,
-            open_price=data['open'][0],
-            high_price=data['high'][0],
-            low_price=data['low'][0],
-            close_price=data['close'][0],
-            volume=data['volume'][0]
-        )
-
-        return redirect('training_data_list')
+    user_profile = UserProfile.objects.get(user=request.user)
 
     # Отображаем список символов и таймфреймов
     symbols = binance.get_symbols()
@@ -187,78 +159,71 @@ def upload_training_data(request):
         '1w': '1 неделя'
     }
 
-    return render(request, 'upload_training_data.html', {'symbols': symbols, 'timeframes': timeframes})
-
-
-def get_available_dates(request):
-    symbol = request.GET.get('symbol')
-    interval = request.GET.get('interval')
-
-    if symbol and interval:
-        start_date, end_date = binance.get_available_dates(symbol, interval)
-        return JsonResponse({'start_date': start_date, 'end_date': end_date})
-
-    return JsonResponse({'error': 'Invalid parameters'}, status=400)
-
-
-# Функция для загрузки данных и отображения списка сохраненных таблиц
-# Функция для загрузки данных и отображения списка сохраненных таблиц
-def upload_training_data(request):
-    # Проверяем наличие профиля пользователя
-    user_profile = UserProfile.objects.get(user=request.user)
-
-    # Получаем список загруженных данных для отображения
     user_data = AssetHistory.objects.filter(user=user_profile)
 
-    # Если метод POST (пользователь отправил форму), проверяем действие
     if request.method == 'POST':
-        # Если нажали на кнопку "Изменить название"
-        if 'new_name' in request.POST:
-            table_id = request.POST.get('table_id')
-            new_name = request.POST.get('new_name')
-            data = get_object_or_404(AssetHistory, id=table_id, user=user_profile)
-            data.asset_name = new_name
-            data.save()
-            messages.success(request, 'Название таблицы успешно изменено.')
-            return redirect('upload_training_data')
+        symbol = request.POST.get('pair')
+        interval = request.POST.get('timeframe')
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
 
-        # Если пользователь загружает новые данные
-        if 'pair' in request.POST and 'timeframe' in request.POST:
-            symbol = request.POST.get('pair')
-            interval = request.POST.get('timeframe')
-            start_date = request.POST.get('start_date')
-            end_date = request.POST.get('end_date')
+        # Проверяем правильность данных
+        if not all([symbol, interval, start_date, end_date]):
+            messages.error(request, 'Все поля обязательны для заполнения.')
+            return render(request, 'upload_training_data.html', {
+                'symbols': symbols,
+                'timeframes': timeframes,
+                'user_data': user_data
+            })
 
-            # Здесь идет код для получения данных с Binance
-            binance_model = BinanceModel()
-            df = binance_model.get_historical_data(symbol, interval, start_date, end_date)
+        try:
+            start_timestamp = pd.Timestamp(start_date)
+            end_timestamp = pd.Timestamp(end_date)
+
+            df = binance.get_historical_data(symbol, interval, start_timestamp, end_timestamp)
 
             if not df.empty:
-                # Сохранение данных в базу
+                # Сохраняем данные в базу данных
                 table_name = f"{symbol}_{interval}_{start_date}_{end_date}"
-                binance_model.save_to_db(df, table_name)
-                messages.success(request, f"Данные для {symbol} успешно загружены.")
+                binance.save_to_db(df, table_name)
 
-            return redirect('upload_training_data')
+                # Сохраняем данные для отображения пользователю
+                for _, row in df.iterrows():
+                    AssetHistory.objects.create(
+                        user=user_profile,
+                        asset_name=symbol,
+                        timestamp=row['timestamp'],
+                        open_price=row['open'],
+                        high_price=row['high'],
+                        low_price=row['low'],
+                        close_price=row['close'],
+                        volume=row['volume']
+                    )
+                messages.success(request, f"Данные для {symbol} успешно загружены.")
+            else:
+                messages.error(request, f"Не удалось загрузить данные для {symbol}.")
+
+        except Exception as e:
+            messages.error(request, f"Ошибка при загрузке данных: {str(e)}")
+
+        return redirect('upload_training_data')
 
     return render(request, 'upload_training_data.html', {
-        'user_data': user_data,
-        'available_pairs': BinanceModel().get_symbols(),  # Получаем доступные торговые пары
+        'symbols': symbols,
+        'timeframes': timeframes,
+        'user_data': user_data
     })
 
-# Удаление таблицы
+# Функция для удаления данных
+@login_required(login_url='/login/')
 def delete_table(request, table_id):
     data = get_object_or_404(AssetHistory, id=table_id, user=request.user.userprofile)
     data.delete()
     messages.success(request, 'Таблица успешно удалена.')
     return redirect('upload_training_data')
 
-# Просмотр таблицы
-def view_table(request, table_id):
-    data = get_object_or_404(AssetHistory, id=table_id, user=request.user.userprofile)
-    return render(request, 'view_table.html', {'data': data})
-
-# Изменение названия таблицы
+# Функция для изменения названия таблицы
+@login_required(login_url='/login/')
 def rename_table(request, table_id):
     if request.method == 'POST':
         new_name = request.POST.get('new_name')
@@ -267,3 +232,9 @@ def rename_table(request, table_id):
         table.save()
         messages.success(request, 'Название таблицы успешно изменено.')
     return redirect('upload_training_data')
+
+# Просмотр таблицы данных
+@login_required(login_url='/login/')
+def view_table(request, table_id):
+    data = get_object_or_404(AssetHistory, id=table_id, user=request.user.userprofile)
+    return render(request, 'view_table.html', {'data': data})

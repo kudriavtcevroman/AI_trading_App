@@ -1,4 +1,4 @@
-<h2>Просмотр данных для {{ data.first.asset_name }}</h2>
+<h2>Просмотр данных для {{ data.asset_name }}</h2>
 <table>
     <thead>
         <tr>
@@ -14,10 +14,10 @@
         {% for row in data %}
         <tr>
             <td>{{ row.timestamp|date:"d.m.Y H:i" }}</td>
-            <td>{{ row.open }}</td>
-            <td>{{ row.high }}</td>
-            <td>{{ row.low }}</td>
-            <td>{{ row.close }}</td>
+            <td>{{ row.open_price }}</td>
+            <td>{{ row.high_price }}</td>
+            <td>{{ row.low_price }}</td>
+            <td>{{ row.close_price }}</td>
             <td>{{ row.volume }}</td>
         </tr>
         {% endfor %}
