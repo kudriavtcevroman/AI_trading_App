@@ -1,6 +1,6 @@
-{% extends 'base.html' %}
+{% extends 'training_base.html' %}
 
-{% block content %}
+{% block training_content %}
 <h1>Загрузка данных для обучения</h1>
 
 <!-- Отображение сообщений -->
@@ -17,15 +17,17 @@
 
     <!-- Выбор торговой пары -->
     <label for="pair">Выберите торговую пару:</label>
-    <select id="pair" name="pair">
+    <input list="pairs" id="pair" name="pair" required>
+    <datalist id="pairs">
         {% for pair in symbols %}
-            <option value="{{ pair }}">{{ pair }}</option>
+            <option value="{{ pair }}">
         {% endfor %}
-    </select>
+    </datalist>
 
     <!-- Выбор таймфрейма -->
     <label for="timeframe">Выберите тайм-фрейм:</label>
-    <select id="timeframe" name="timeframe">
+    <select id="timeframe" name="timeframe" required>
+        <option value="" selected>-- Выберите тайм-фрейм --</option>
         {% for key, value in timeframes.items %}
             <option value="{{ key }}">{{ value }}</option>
         {% endfor %}
@@ -33,10 +35,10 @@
 
     <!-- Выбор диапазона дат -->
     <label for="start_date">Начальная дата:</label>
-    <input type="date" id="start_date" name="start_date" value="2020-01-01">
+    <input type="date" id="start_date" name="start_date" required>
 
     <label for="end_date">Конечная дата:</label>
-    <input type="date" id="end_date" name="end_date" value="{{ today }}">
+    <input type="date" id="end_date" name="end_date" required>
 
     <!-- Кнопка загрузки данных -->
     <button type="submit">Загрузить данные</button>
@@ -44,30 +46,88 @@
 
 <h2>Ваши загруженные данные</h2>
 
-{% if user_data %}
+{% if user_datasets.exists %}
     <ul>
-        {% for data in user_data %}
+        {% for dataset in user_datasets %}
             <li>
-                <strong>{{ data.asset_name }}</strong> ({{ data.timestamp|date:"d.m.Y H:i" }})
-                <!-- Форма для изменения названия таблицы -->
-                <form method="post" action="{% url 'rename_table' data.id %}" style="display: inline;">
+                <strong>Название:</strong> {{ dataset.name }}<br>
+                <strong>Торговая пара:</strong> {{ dataset.asset_name }}<br>
+                <strong>Тайм-фрейм:</strong> {{ dataset.interval }}<br>
+                <strong>Диапазон дат:</strong> {{ dataset.start_date }} - {{ dataset.end_date }}
+
+                <!-- Форма для изменения названия набора данных -->
+                <form method="post" action="{% url 'rename_dataset' dataset.id %}" style="display: inline;">
                     {% csrf_token %}
                     <input type="text" name="new_name" placeholder="Новое название">
                     <button type="submit">Изменить название</button>
                 </form>
-                <!-- Форма для удаления таблицы -->
-                <form method="post" action="{% url 'delete_table' data.id %}" style="display: inline;">
+
+                <!-- Форма для удаления набора данных -->
+                <form method="post" action="{% url 'delete_dataset' dataset.id %}" style="display: inline;">
                     {% csrf_token %}
                     <button type="submit">Удалить</button>
                 </form>
-                <!-- Ссылка для просмотра таблицы -->
-                <form method="get" action="{% url 'view_table' data.id %}" style="display: inline;">
-                    <button type="submit">Посмотреть</button>
-                </form>
+
+                <!-- Ссылка для просмотра данных набора -->
+                <a href="{% url 'view_dataset' dataset.id %}">Посмотреть данные</a>
             </li>
         {% endfor %}
     </ul>
 {% else %}
     <p>Нет загруженных данных</p>
 {% endif %}
+
+<script>
+    function updateDateRange() {
+        const pair = document.getElementById('pair').value;
+        const timeframe = document.getElementById('timeframe').value;
+        if (pair && timeframe) {
+            fetch("{% url 'get_date_range' %}?pair=" + pair + "&timeframe=" + timeframe)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const startDate = data.start_date;
+                        const endDate = data.end_date;
+
+                        // Урежем диапазоны на один день вперед и назад
+                        const adjustedStartDate = new Date(startDate);
+                        adjustedStartDate.setDate(adjustedStartDate.getDate() + 1);
+
+                        const adjustedEndDate = new Date(endDate);
+                        adjustedEndDate.setDate(adjustedEndDate.getDate() - 1);
+
+                        // Преобразуем даты обратно в формат YYYY-MM-DD
+                        const minDate = adjustedStartDate.toISOString().split('T')[0];
+                        const maxDate = adjustedEndDate.toISOString().split('T')[0];
+
+                        // Устанавливаем атрибуты min и max для полей ввода дат
+                        document.getElementById('start_date').min = minDate;
+                        document.getElementById('start_date').max = maxDate;
+                        document.getElementById('end_date').min = minDate;
+                        document.getElementById('end_date').max = maxDate;
+
+                        // Очищаем ранее выбранные даты
+                        document.getElementById('start_date').value = '';
+                        document.getElementById('end_date').value = '';
+                    } else {
+                        // Если не удалось получить диапазон дат, сбрасываем поля
+                        document.getElementById('start_date').min = '';
+                        document.getElementById('start_date').max = '';
+                        document.getElementById('end_date').min = '';
+                        document.getElementById('end_date').max = '';
+                    }
+                });
+        } else {
+            // Если пара или таймфрейм не выбраны, сбрасываем поля дат
+            document.getElementById('start_date').min = '';
+            document.getElementById('start_date').max = '';
+            document.getElementById('end_date').min = '';
+            document.getElementById('end_date').max = '';
+        }
+    }
+
+    // Добавляем обработчики событий
+    document.getElementById('pair').addEventListener('change', updateDateRange);
+    document.getElementById('timeframe').addEventListener('change', updateDateRange);
+</script>
 {% endblock %}

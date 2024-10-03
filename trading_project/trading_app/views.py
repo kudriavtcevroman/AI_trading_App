@@ -3,12 +3,12 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
-from .models import UserProfile, UserAdditionalInfo, AssetHistory
+from .models import UserProfile, UserAdditionalInfo, AssetHistory, DataSet
 from .forms import CustomUserCreationForm, UserProfileForm, UserAdditionalInfoForm
 from .binance_service import BinanceModel
-from django.http import JsonResponse
 import pandas as pd
-from datetime import datetime
+from django.http import JsonResponse
+
 
 @login_required(login_url='/login/')
 def home_view(request):
@@ -140,6 +140,10 @@ def edit_profile(request):
         'additional_info_form': additional_info_form
     })
 
+@login_required(login_url='/login/')
+def training_home(request):
+    # Перенаправляем на подраздел «Загрузка данных для обучения» по умолчанию
+    return redirect('upload_training_data')
 
 binance = BinanceModel()  # Инициализация класса здесь, чтобы не повторять в функциях
 
@@ -147,7 +151,70 @@ binance = BinanceModel()  # Инициализация класса здесь, 
 def upload_training_data(request):
     user_profile = UserProfile.objects.get(user=request.user)
 
-    # Отображаем список символов и таймфреймов
+    if request.method == 'POST':
+        symbol = request.POST.get('pair')
+        interval = request.POST.get('timeframe')
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+
+        try:
+            # Получение доступного диапазона дат для выбранного символа и интервала
+            available_start_date, available_end_date = binance.get_available_date_range(symbol, interval)
+
+            # Проверка выбранных дат
+            if not (available_start_date <= pd.to_datetime(start_date) <= available_end_date and
+                    available_start_date <= pd.to_datetime(end_date) <= available_end_date):
+                messages.error(request, f"Выбранные даты выходят за пределы доступного диапазона: {available_start_date.date()} - {available_end_date.date()}")
+                return redirect('upload_training_data')
+
+            # Проверка, что начальная дата меньше конечной
+            if pd.to_datetime(start_date) >= pd.to_datetime(end_date):
+                messages.error(request, "Начальная дата должна быть раньше конечной даты.")
+                return redirect('upload_training_data')
+
+            # Получаем данные с Binance
+            df = binance.get_historical_data(symbol, interval, start_date, end_date)
+
+            if not df.empty:
+                # Создаем запись DataSet
+                dataset_name = f"{symbol}, {interval}, {start_date}, {end_date}"
+                dataset = DataSet.objects.create(
+                    user=user_profile,
+                    name=dataset_name,
+                    asset_name=symbol,
+                    interval=interval,
+                    start_date=start_date,
+                    end_date=end_date
+                )
+
+                # Обновляем название набора данных с добавлением ID
+                dataset.name = f"{dataset.id}, {dataset_name}"
+                dataset.save()
+
+                # Подготовка данных для сохранения
+                data_entries = []
+                for _, row in df.iterrows():
+                    data_entries.append(AssetHistory(
+                        dataset=dataset,
+                        timestamp=row['open_time'],
+                        open_price=row['open'],
+                        high_price=row['high'],
+                        low_price=row['low'],
+                        close_price=row['close'],
+                        volume=row['volume']
+                    ))
+                # Сохраняем данные пачкой
+                AssetHistory.objects.bulk_create(data_entries)
+
+                messages.success(request, f"Данные для {symbol} успешно загружены.")
+            else:
+                messages.error(request, f"Нет данных для выбранного периода.")
+
+        except Exception as e:
+            messages.error(request, f"Ошибка при загрузке данных: {str(e)}")
+
+        return redirect('upload_training_data')
+
     symbols = binance.get_symbols()
     timeframes = {
         '1m': '1 минута',
@@ -159,82 +226,55 @@ def upload_training_data(request):
         '1w': '1 неделя'
     }
 
-    user_data = AssetHistory.objects.filter(user=user_profile)
-
-    if request.method == 'POST':
-        symbol = request.POST.get('pair')
-        interval = request.POST.get('timeframe')
-        start_date = request.POST.get('start_date')
-        end_date = request.POST.get('end_date')
-
-        # Проверяем правильность данных
-        if not all([symbol, interval, start_date, end_date]):
-            messages.error(request, 'Все поля обязательны для заполнения.')
-            return render(request, 'upload_training_data.html', {
-                'symbols': symbols,
-                'timeframes': timeframes,
-                'user_data': user_data
-            })
-
-        try:
-            start_timestamp = pd.Timestamp(start_date)
-            end_timestamp = pd.Timestamp(end_date)
-
-            df = binance.get_historical_data(symbol, interval, start_timestamp, end_timestamp)
-
-            if not df.empty:
-                # Сохраняем данные в базу данных
-                table_name = f"{symbol}_{interval}_{start_date}_{end_date}"
-                binance.save_to_db(df, table_name)
-
-                # Сохраняем данные для отображения пользователю
-                for _, row in df.iterrows():
-                    AssetHistory.objects.create(
-                        user=user_profile,
-                        asset_name=symbol,
-                        timestamp=row['timestamp'],
-                        open_price=row['open'],
-                        high_price=row['high'],
-                        low_price=row['low'],
-                        close_price=row['close'],
-                        volume=row['volume']
-                    )
-                messages.success(request, f"Данные для {symbol} успешно загружены.")
-            else:
-                messages.error(request, f"Не удалось загрузить данные для {symbol}.")
-
-        except Exception as e:
-            messages.error(request, f"Ошибка при загрузке данных: {str(e)}")
-
-        return redirect('upload_training_data')
+    user_datasets = DataSet.objects.filter(user=user_profile)
 
     return render(request, 'upload_training_data.html', {
         'symbols': symbols,
         'timeframes': timeframes,
-        'user_data': user_data
+        'user_datasets': user_datasets
     })
+
 
 # Функция для удаления данных
 @login_required(login_url='/login/')
-def delete_table(request, table_id):
-    data = get_object_or_404(AssetHistory, id=table_id, user=request.user.userprofile)
-    data.delete()
-    messages.success(request, 'Таблица успешно удалена.')
+def delete_dataset(request, dataset_id):
+    dataset = get_object_or_404(DataSet, id=dataset_id, user=request.user.userprofile)
+    dataset.delete()
+    messages.success(request, 'Набор данных успешно удален.')
     return redirect('upload_training_data')
 
-# Функция для изменения названия таблицы
 @login_required(login_url='/login/')
-def rename_table(request, table_id):
+def rename_dataset(request, dataset_id):
     if request.method == 'POST':
         new_name = request.POST.get('new_name')
-        table = get_object_or_404(AssetHistory, id=table_id, user=request.user.userprofile)
-        table.asset_name = new_name
-        table.save()
-        messages.success(request, 'Название таблицы успешно изменено.')
+        dataset = get_object_or_404(DataSet, id=dataset_id, user=request.user.userprofile)
+        dataset.name = new_name
+        dataset.save()
+        messages.success(request, 'Название набора данных успешно изменено.')
     return redirect('upload_training_data')
 
-# Просмотр таблицы данных
 @login_required(login_url='/login/')
-def view_table(request, table_id):
-    data = get_object_or_404(AssetHistory, id=table_id, user=request.user.userprofile)
-    return render(request, 'view_table.html', {'data': data})
+def view_dataset(request, dataset_id):
+    dataset = get_object_or_404(DataSet, id=dataset_id, user=request.user.userprofile)
+    data = dataset.candles.all()
+    return render(request, 'view_dataset.html', {'data': data, 'dataset': dataset})
+
+@login_required(login_url='/login/')
+def get_date_range(request):
+    symbol = request.GET.get('pair')
+    interval = request.GET.get('timeframe')
+    if symbol and interval:
+        start_date, end_date = binance.get_available_date_range(symbol, interval)
+        if start_date and end_date:
+            return JsonResponse({
+                'success': True,
+                'start_date': start_date.strftime('%Y-%m-%d'),
+                'end_date': end_date.strftime('%Y-%m-%d')
+            })
+    return JsonResponse({'success': False})
+
+
+@login_required(login_url='/login/')
+def training_model(request):
+    # Представление для подраздела «Обучение торговой модели»
+    return render(request, 'training_model.html')

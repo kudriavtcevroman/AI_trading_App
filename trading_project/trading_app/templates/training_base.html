@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="training-navigation">
+    <ul>
+        <li><a href="{% url 'upload_training_data' %}">Загрузка данных для обучения</a></li>
+        <li><a href="{% url 'training_model' %}">Обучение торговой модели</a></li>
+    </ul>
+</div>
+{% block training_content %}{% endblock %}
+{% endblock %}
