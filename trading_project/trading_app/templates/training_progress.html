@@ -1,0 +1,10 @@
+{% extends 'training_base.html' %}
+
+{% block training_content %}
+<h2>Прогресс обучения</h2>
+<p>Статус: {{ training_session.get_status_display }}</p>
+<p>Прогресс: {{ training_session.progress }}%</p>
+<p>Точность: {{ training_session.accuracy }}%</p>
+
+<!-- Здесь можно добавить график обучения с помощью JavaScript и обновлять его через веб-сокеты или периодические запросы -->
+{% endblock %}

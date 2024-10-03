@@ -2,5 +2,116 @@
 
 {% block training_content %}
 <h1>Обучение торговой модели</h1>
-<!-- Контент для обучения модели -->
+
+<form id="training-form" method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Начать обучение</button>
+</form>
+
+<!-- Блок для отображения прогресса и графика -->
+<div id="training-progress" style="display: none;">
+    <h2>Прогресс обучения</h2>
+    <p>Статус: <span id="status">Ожидание</span></p>
+    <p>Прогресс: <span id="progress">0%</span></p>
+    <p>Точность: <span id="accuracy">0%</span></p>
+    <canvas id="training-chart" width="400" height="200"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.getElementById('training-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var form = this;
+
+        // Disable the submit button to prevent multiple submissions
+        var submitButton = form.querySelector('button[type="submit"]');
+        submitButton.disabled = true;
+
+        // Отправляем данные формы через AJAX
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '{% url "training_model" %}');
+        xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.responseType = 'json';
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                var response = xhr.response;
+                if (response.success) {
+                    // Скрываем форму и показываем прогресс
+                    form.style.display = 'none';
+                    document.getElementById('training-progress').style.display = 'block';
+
+                    // Запускаем обновление прогресса
+                    var trainingSessionId = response.training_session_id;
+                    startTrainingProgress(trainingSessionId);
+                } else {
+                    // Обрабатываем ошибки формы
+                    alert('Ошибка: ' + JSON.stringify(response.errors));
+                    // Re-enable the submit button
+                    submitButton.disabled = false;
+                }
+            } else {
+                alert('Произошла ошибка при отправке данных.');
+                // Re-enable the submit button
+                submitButton.disabled = false;
+            }
+        };
+        xhr.onerror = function() {
+            alert('Произошла ошибка при отправке запроса.');
+            // Re-enable the submit button
+            submitButton.disabled = false;
+        };
+        xhr.send(new FormData(form));
+    });
+
+    function startTrainingProgress(trainingSessionId) {
+        var statusElement = document.getElementById('status');
+        var progressElement = document.getElementById('progress');
+        var accuracyElement = document.getElementById('accuracy');
+        var ctx = document.getElementById('training-chart').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Точность обучения',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    fill: false
+                }]
+            },
+            options: {
+                scales: {
+                    x: { title: { display: true, text: 'Эпоха' } },
+                    y: { title: { display: true, text: 'Точность (%)' }, min: 0, max: 100 }
+                }
+            }
+        });
+
+        function updateProgress() {
+            fetch('{% url "training_status" %}?id=' + trainingSessionId)
+                .then(response => response.json())
+                .then(data => {
+                    statusElement.textContent = data.status_display;
+                    progressElement.textContent = data.progress + '%';
+                    accuracyElement.textContent = data.accuracy + '%';
+
+                    // Обновляем график
+                    if (data.epoch && data.accuracy) {
+                        chart.data.labels.push('Эпоха ' + data.epoch);
+                        chart.data.datasets[0].data.push(data.accuracy);
+                        chart.update();
+                    }
+
+                    if (data.status === 'completed' || data.status === 'failed') {
+                        // Обучение завершено
+                        clearInterval(progressInterval);
+                    }
+                });
+        }
+
+        var progressInterval = setInterval(updateProgress, 2000);
+    }
+</script>
 {% endblock %}

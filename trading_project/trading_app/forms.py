@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from .models import UserProfile, UserAdditionalInfo
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from .models import DataSet
 
 class CustomUserCreationForm(UserCreationForm):
     # Поля из модели User
@@ -56,3 +57,110 @@ class UserAdditionalInfoForm(forms.ModelForm):
     class Meta:
         model = UserAdditionalInfo
         fields = ['middle_name', 'nickname', 'telegram', 'country', 'city']
+
+
+class DataSelectionForm(forms.Form):
+    dataset = forms.ModelChoiceField(
+        queryset=None,
+        label="Выберите набор данных для обучения",
+        widget=forms.RadioSelect
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        super(DataSelectionForm, self).__init__(*args, **kwargs)
+        self.fields['dataset'].queryset = DataSet.objects.filter(user=user)
+
+class TradingStrategyForm(forms.Form):
+    long = forms.BooleanField(label="Торговля в LONG", required=False)
+    short = forms.BooleanField(label="Торговля в SHORT", required=False)
+    stop_loss = forms.FloatField(
+        label="Stop-Loss",
+        min_value=0,
+        max_value=100,
+        required=True
+    )
+
+class IndicatorsForm(forms.Form):
+    INDICATORS_CHOICES = [
+        ('Volume', 'Volume'),
+        ('EMA', 'EMA'),
+        ('RSI', 'RSI'),
+        ('On-Balance Volume', 'On-Balance Volume'),
+        ('Stochastic Oscillator', 'Stochastic Oscillator'),
+        ('Bollinger Bands', 'Bollinger Bands'),
+        ('MACD', 'MACD'),
+        ('Average Directional Index', 'Average Directional Index'),
+        ('Standard Deviation', 'Standard Deviation'),
+        ('Ichimoku Cloud', 'Ichimoku Cloud'),
+    ]
+
+    indicators = forms.MultipleChoiceField(
+        choices=INDICATORS_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        label="Выберите индикаторы",
+        required=True
+    )
+
+class TrainingParametersForm(forms.Form):
+    epochs = forms.IntegerField(label="Количество эпох", min_value=1, max_value=1000, initial=10)
+    batch_size = forms.IntegerField(label="Размер батча", min_value=1, max_value=1024, initial=32)
+    learning_rate = forms.FloatField(label="Скорость обучения", min_value=0.0001, max_value=1.0, initial=0.001)
+
+
+class TrainingForm(forms.Form):
+    # Выбор набора данных
+    dataset = forms.ModelChoiceField(
+        queryset=None,
+        label="Выберите набор данных для обучения",
+        widget=forms.RadioSelect
+    )
+
+    # Стратегия торговли
+    long = forms.BooleanField(label="Торговля в LONG", required=False)
+    short = forms.BooleanField(label="Торговля в SHORT", required=False)
+    stop_loss = forms.FloatField(
+        label="Stop-Loss",
+        min_value=0,
+        max_value=100,
+        required=True
+    )
+
+    # Выбор индикаторов
+    INDICATORS_CHOICES = [
+        ('Volume', 'Volume'),
+        ('EMA', 'EMA'),
+        ('RSI', 'RSI'),
+        ('On-Balance Volume', 'On-Balance Volume'),
+        ('Stochastic Oscillator', 'Stochastic Oscillator'),
+        ('Bollinger Bands', 'Bollinger Bands'),
+        ('MACD', 'MACD'),
+        ('Average Directional Index', 'Average Directional Index'),
+        ('Standard Deviation', 'Standard Deviation'),
+        ('Ichimoku Cloud', 'Ichimoku Cloud'),
+    ]
+
+    indicators = forms.MultipleChoiceField(
+        choices=INDICATORS_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        label="Выберите индикаторы",
+        required=True
+    )
+
+    # Параметры обучения
+    epochs = forms.IntegerField(label="Количество эпох", min_value=1, max_value=1000, initial=10)
+    batch_size = forms.IntegerField(label="Размер батча", min_value=1, max_value=1024, initial=32)
+    learning_rate = forms.FloatField(label="Скорость обучения", min_value=0.0001, max_value=1.0, initial=0.001)
+
+    def __init__(self, user, *args, **kwargs):
+        super(TrainingForm, self).__init__(*args, **kwargs)
+        self.fields['dataset'].queryset = DataSet.objects.filter(user=user)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        long = cleaned_data.get('long')
+        short = cleaned_data.get('short')
+
+        if not long and not short:
+            raise forms.ValidationError("Вы должны выбрать хотя бы один вариант: Торговля в LONG или Торговля в SHORT.")
+
+        return cleaned_data

@@ -73,3 +73,38 @@ class AssetHistory(models.Model):
 
     def __str__(self):
         return f"{self.dataset.asset_name} ({self.timestamp})"
+
+
+class TrainingSession(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    dataset = models.ForeignKey(DataSet, on_delete=models.CASCADE)
+    long = models.BooleanField(default=False)
+    short = models.BooleanField(default=False)
+    stop_loss = models.FloatField(default=0.0)
+    indicators = models.JSONField(default=list)  # Сохраняем список выбранных индикаторов
+    epochs = models.IntegerField(default=10)
+    batch_size = models.IntegerField(default=32)
+    learning_rate = models.FloatField(default=0.001)
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('running', 'Running'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ], default='pending')
+    progress = models.FloatField(default=0.0)  # Процент выполнения
+    accuracy = models.FloatField(null=True, blank=True)  # Процент успешности обучения
+    created_at = models.DateTimeField(auto_now_add=True)
+    current_epoch = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"TrainingSession {self.id} for {self.user.user.username} ({self.status})"
+
+class TrainedModel(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    training_session = models.ForeignKey(TrainingSession, on_delete=models.SET_NULL, null=True)
+    model_file = models.FileField(upload_to='models/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

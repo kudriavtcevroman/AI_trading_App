@@ -133,3 +133,6 @@ LOGOUT_REDIRECT_URL = '/login/'  # После выхода перенаправ�
 
 # Формат даты для всего приложения
 DATE_INPUT_FORMATS = ['%d.%m.%Y', '%Y-%m-%d']
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
