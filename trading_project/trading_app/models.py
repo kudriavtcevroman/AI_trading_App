@@ -50,11 +50,20 @@ class UserAdditionalInfo(models.Model):
     def __str__(self):
         return f"Доп. информация: {self.nickname or self.user_profile.first_name}"
 
-
-# Модель для хранения истории активов
-class AssetHistory(models.Model):
+class DataSet(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
-    asset_name = models.CharField(max_length=100)  # Название актива (например, BTC/USDT)
+    name = models.CharField(max_length=255)
+    asset_name = models.CharField(max_length=100)
+    interval = models.CharField(max_length=10)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.asset_name} ({self.interval})"
+
+class AssetHistory(models.Model):
+    dataset = models.ForeignKey(DataSet, on_delete=models.CASCADE, related_name='candles')
     timestamp = models.DateTimeField()
     open_price = models.DecimalField(max_digits=20, decimal_places=8)
     high_price = models.DecimalField(max_digits=20, decimal_places=8)
@@ -63,4 +72,4 @@ class AssetHistory(models.Model):
     volume = models.DecimalField(max_digits=20, decimal_places=8)
 
     def __str__(self):
-        return f"{self.asset_name} ({self.timestamp})"
+        return f"{self.dataset.asset_name} ({self.timestamp})"
