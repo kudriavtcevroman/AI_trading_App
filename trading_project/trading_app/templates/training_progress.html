@@ -4,7 +4,109 @@
 <h2>Прогресс обучения</h2>
 <p>Статус: {{ training_session.get_status_display }}</p>
 <p>Прогресс: {{ training_session.progress }}%</p>
-<p>Точность: {{ training_session.accuracy }}%</p>
+<p>MSE: {{ training_session.mse }}</p>
+<p>MAE: {{ training_session.mae }}</p>
+<p>RMSE: {{ training_session.rmse }}</p>
 
-<!-- Здесь можно добавить график обучения с помощью JavaScript и обновлять его через веб-сокеты или периодические запросы -->
+<canvas id="metricsChart" width="400" height="200"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const trainingSessionId = "{{ training_session.id }}";
+    const metricsChartCtx = document.getElementById('metricsChart').getContext('2d');
+    let metricsChart;
+
+    function fetchTrainingStatus() {
+        fetch(`/training/status/?id=${trainingSessionId}`)
+            .then(response => response.json())
+            .then(data => {
+                // Обновление текста статуса и прогресса
+                document.querySelector('p:nth-of-type(1)').innerText = `Статус: ${data.status_display}`;
+                document.querySelector('p:nth-of-type(2)').innerText = `Прогресс: ${data.progress}%`;
+                document.querySelector('p:nth-of-type(3)').innerText = `MSE: ${data.mse}`;
+                document.querySelector('p:nth-of-type(4)').innerText = `MAE: ${data.mae}`;
+                document.querySelector('p:nth-of-type(5)').innerText = `RMSE: ${data.rmse}`;
+
+                // Обновление графика
+                updateChart(data.history);
+
+                // Если обучение завершено, остановить опрос
+                if (data.status === 'completed' || data.status === 'failed') {
+                    clearInterval(statusInterval);
+                }
+            })
+            .catch(error => console.error('Ошибка при получении статуса:', error));
+    }
+
+    function updateChart(history) {
+        const epochs = history.map(entry => entry.epoch);
+        const mse = history.map(entry => entry.mse);
+        const mae = history.map(entry => entry.mae);
+        const rmse = history.map(entry => entry.rmse);
+
+        if (metricsChart) {
+            // Обновляем существующий график
+            metricsChart.data.labels = epochs;
+            metricsChart.data.datasets[0].data = mse;
+            metricsChart.data.datasets[1].data = mae;
+            metricsChart.data.datasets[2].data = rmse;
+            metricsChart.update();
+        } else {
+            // Создаём новый график
+            metricsChart = new Chart(metricsChartCtx, {
+                type: 'line',
+                data: {
+                    labels: epochs,
+                    datasets: [
+                        {
+                            label: 'MSE',
+                            data: mse,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: false,
+                        },
+                        {
+                            label: 'MAE',
+                            data: mae,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            fill: false,
+                        },
+                        {
+                            label: 'RMSE',
+                            data: rmse,
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: false,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Эпоха'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Значение метрики'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    // Начинаем опрос статуса каждые 5 секунд
+    fetchTrainingStatus();  // Первичный вызов
+    const statusInterval = setInterval(fetchTrainingStatus, 5000);
+</script>
 {% endblock %}
+
+

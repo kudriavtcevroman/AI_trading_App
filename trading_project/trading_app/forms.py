@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from .models import UserProfile, UserAdditionalInfo
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from .models import DataSet
+from .models import DataSet, TrainedModel
 
 class CustomUserCreationForm(UserCreationForm):
     # Поля из модели User
@@ -82,7 +82,6 @@ class TradingStrategyForm(forms.Form):
 
 class IndicatorsForm(forms.Form):
     INDICATORS_CHOICES = [
-        ('Volume', 'Volume'),
         ('EMA', 'EMA'),
         ('RSI', 'RSI'),
         ('On-Balance Volume', 'On-Balance Volume'),
@@ -91,7 +90,6 @@ class IndicatorsForm(forms.Form):
         ('MACD', 'MACD'),
         ('Average Directional Index', 'Average Directional Index'),
         ('Standard Deviation', 'Standard Deviation'),
-        ('Ichimoku Cloud', 'Ichimoku Cloud'),
     ]
 
     indicators = forms.MultipleChoiceField(
@@ -127,7 +125,6 @@ class TrainingForm(forms.Form):
 
     # Выбор индикаторов
     INDICATORS_CHOICES = [
-        ('Volume', 'Volume'),
         ('EMA', 'EMA'),
         ('RSI', 'RSI'),
         ('On-Balance Volume', 'On-Balance Volume'),
@@ -136,7 +133,6 @@ class TrainingForm(forms.Form):
         ('MACD', 'MACD'),
         ('Average Directional Index', 'Average Directional Index'),
         ('Standard Deviation', 'Standard Deviation'),
-        ('Ichimoku Cloud', 'Ichimoku Cloud'),
     ]
 
     indicators = forms.MultipleChoiceField(
@@ -164,3 +160,14 @@ class TrainingForm(forms.Form):
             raise forms.ValidationError("Вы должны выбрать хотя бы один вариант: Торговля в LONG или Торговля в SHORT.")
 
         return cleaned_data
+
+class ModelSelectionForm(forms.Form):
+    model = forms.ModelChoiceField(
+        queryset=None,
+        label="Выберите обученную модель для тестирования",
+        widget=forms.RadioSelect
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        super(ModelSelectionForm, self).__init__(*args, **kwargs)
+        self.fields['model'].queryset = TrainedModel.objects.filter(user=user)

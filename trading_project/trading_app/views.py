@@ -4,12 +4,11 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm
 from .models import UserProfile, UserAdditionalInfo, AssetHistory, DataSet, TrainingSession, TrainedModel
-from .forms import CustomUserCreationForm, UserProfileForm, UserAdditionalInfoForm, DataSelectionForm, TradingStrategyForm, IndicatorsForm, TrainingParametersForm, TrainingForm
+from .forms import CustomUserCreationForm, UserProfileForm, UserAdditionalInfoForm, DataSelectionForm, TradingStrategyForm, IndicatorsForm, TrainingParametersForm, TrainingForm, ModelSelectionForm
 from .binance_service import BinanceModel
 from .tasks import train_model
 import pandas as pd
 from django.http import JsonResponse
-from django.utils import timezone
 
 
 @login_required(login_url='/login/')
@@ -416,8 +415,8 @@ def training_parameters(request):
 @login_required(login_url='/login/')
 def training_progress(request, training_session_id):
     training_session = get_object_or_404(TrainingSession, id=training_session_id, user=request.user.userprofile)
-
     return render(request, 'training_progress.html', {'training_session': training_session})
+
 
 @login_required(login_url='/login/')
 def training_status(request):
@@ -428,8 +427,10 @@ def training_status(request):
         'status': training_session.status,
         'status_display': training_session.get_status_display(),
         'progress': training_session.progress,
-        'accuracy': training_session.accuracy or 0,
-        'epoch': training_session.current_epoch or 0
+        'mse': training_session.mse or 0,
+        'mae': training_session.mae or 0,
+        'rmse': training_session.rmse or 0,
+        'history': training_session.history  # Добавлено
     }
     return JsonResponse(data)
 
@@ -444,3 +445,51 @@ def delete_model(request, model_id):
     model.delete()
     messages.success(request, 'Модель успешно удалена.')
     return redirect('saved_models')
+
+@login_required(login_url='/login/')
+def testing_model_view(request):
+    user_profile = request.user.userprofile
+    data_form = DataSelectionForm(user_profile)
+    model_form = ModelSelectionForm(user_profile)
+
+    context = {
+        'data_form': data_form,
+        'model_form': model_form,
+    }
+    return render(request, 'testing_model.html', context)
+
+
+@login_required(login_url='/login/')
+def select_data_for_testing(request):
+    if request.method == 'POST':
+        form = DataSelectionForm(request.user.userprofile, request.POST)
+        if form.is_valid():
+            request.session['testing_dataset_id'] = form.cleaned_data['dataset'].id
+            return JsonResponse({'success': True})
+        return JsonResponse({'success': False, 'errors': form.errors})
+
+
+@login_required(login_url='/login/')
+def select_model_for_testing(request):
+    if request.method == 'POST':
+        form = ModelSelectionForm(request.user.userprofile, request.POST)
+        if form.is_valid():
+            model = form.cleaned_data['model']
+            dataset_id = request.session.get('testing_dataset_id')
+            dataset = DataSet.objects.get(id=dataset_id)
+
+            # Формируем данные для графика
+            response_data = {
+                'symbol': dataset.asset_name,
+                'interval': dataset.interval,
+                'bars': list(dataset.candles.values('timestamp', 'open_price', 'high_price', 'low_price', 'close_price', 'volume'))
+            }
+
+            return JsonResponse({'success': True, 'data': response_data})
+        return JsonResponse({'success': False, 'errors': form.errors})
+
+
+@login_required(login_url='/login/')
+def start_model_testing(request):
+    # Здесь нужно реализовать логику тестирования выбранной модели
+    return JsonResponse({'success': True, 'message': 'Тестирование началось'})

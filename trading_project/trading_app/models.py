@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import EmailValidator, RegexValidator
 from django.contrib.auth.models import User
-
+from django.db.models import JSONField
 
 # Модель для основных данных пользователя
 class UserProfile(models.Model):
@@ -95,6 +95,10 @@ class TrainingSession(models.Model):
     accuracy = models.FloatField(null=True, blank=True)  # Процент успешности обучения
     created_at = models.DateTimeField(auto_now_add=True)
     current_epoch = models.IntegerField(default=0)
+    mse = models.FloatField(null=True, blank=True)  # Добавлено
+    mae = models.FloatField(null=True, blank=True)  # Добавлено
+    rmse = models.FloatField(null=True, blank=True)  # Добавлено
+    history = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return f"TrainingSession {self.id} for {self.user.user.username} ({self.status})"
@@ -102,7 +106,7 @@ class TrainingSession(models.Model):
 class TrainedModel(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     name = models.CharField(max_length=255)
-    training_session = models.ForeignKey(TrainingSession, on_delete=models.SET_NULL, null=True)
+    training_session = models.ForeignKey(TrainingSession, on_delete=models.CASCADE)
     model_file = models.FileField(upload_to='models/')
     created_at = models.DateTimeField(auto_now_add=True)
 
