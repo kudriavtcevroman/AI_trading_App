@@ -1,0 +1,25 @@
+{% extends 'training/training_base.html' %}
+
+{% block training_content %}
+    <!-- Заголовок страницы с сохраненными моделями -->
+    <h1>Сохраненные модели</h1>
+
+    <!-- Список сохраненных моделей -->
+    <ul>
+        {% for model in models %}
+        <li>
+            <!-- Отображение имени модели и даты создания -->
+            {{ model.name }} ({{ model.created_at }})
+
+            <!-- Форма для удаления модели -->
+            <form method="post" action="{% url 'delete_model' model.id %}">
+                {% csrf_token %}
+                <button type="submit">Удалить</button>
+            </form>
+        </li>
+        {% empty %}
+        <!-- Сообщение, если у пользователя нет сохраненных моделей -->
+        <p>У вас нет сохраненных моделей.</p>
+        {% endfor %}
+    </ul>
+{% endblock %}

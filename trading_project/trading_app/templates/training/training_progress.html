@@ -1,0 +1,122 @@
+{% extends 'training/training_base.html' %}
+
+{% block training_content %}
+    <!-- Заголовок страницы прогресса обучения -->
+    <h2>Прогресс обучения</h2>
+
+    <!-- Вывод информации о статусе и прогрессе обучения -->
+    <p>Статус: {{ training_session.get_status_display }}</p>
+    <p>Прогресс: {{ training_session.progress }}%</p>
+    <p>MSE: {{ training_session.mse }}</p>
+    <p>MAE: {{ training_session.mae }}</p>
+    <p>RMSE: {{ training_session.rmse }}</p>
+
+    <!-- Холст для отображения графика метрик -->
+    <canvas id="metricsChart" width="400" height="200"></canvas>
+
+    <!-- Подключение библиотеки Chart.js для визуализации данных -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // ID текущей сессии обучения, используем для запросов к серверу
+        const trainingSessionId = "{{ training_session.id }}";
+        const metricsChartCtx = document.getElementById('metricsChart').getContext('2d');
+        let metricsChart;  // Переменная для хранения объекта графика
+
+        // Функция для получения статуса обучения с сервера
+        function fetchTrainingStatus() {
+            fetch(`/training/status/?id=${trainingSessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Обновление текста статуса и прогресса
+                    document.querySelector('p:nth-of-type(1)').innerText = `Статус: ${data.status_display}`;
+                    document.querySelector('p:nth-of-type(2)').innerText = `Прогресс: ${data.progress}%`;
+                    document.querySelector('p:nth-of-type(3)').innerText = `MSE: ${data.mse}`;
+                    document.querySelector('p:nth-of-type(4)').innerText = `MAE: ${data.mae}`;
+                    document.querySelector('p:nth-of-type(5)').innerText = `RMSE: ${data.rmse}`;
+
+                    // Обновление графика с новыми данными
+                    updateChart(data.history);
+
+                    // Если обучение завершено или прервано, прекращаем опрос
+                    if (data.status === 'completed' || data.status === 'failed') {
+                        clearInterval(statusInterval);
+                    }
+                })
+                .catch(error => console.error('Ошибка при получении статуса:', error));
+        }
+
+        // Функция для обновления данных на графике
+        function updateChart(history) {
+            const epochs = history.map(entry => entry.epoch); // Список эпох
+            const mse = history.map(entry => entry.mse);       // Значения MSE
+            const mae = history.map(entry => entry.mae);       // Значения MAE
+            const rmse = history.map(entry => entry.rmse);     // Значения RMSE
+
+            if (metricsChart) {
+                // Если график уже существует, обновляем его данные
+                metricsChart.data.labels = epochs;
+                metricsChart.data.datasets[0].data = mse;
+                metricsChart.data.datasets[1].data = mae;
+                metricsChart.data.datasets[2].data = rmse;
+                metricsChart.update();  // Обновляем отображение
+            } else {
+                // Если график ещё не создан, создаём его
+                metricsChart = new Chart(metricsChartCtx, {
+                    type: 'line',  // Линейный график
+                    data: {
+                        labels: epochs,
+                        datasets: [
+                            {
+                                label: 'MSE',
+                                data: mse,
+                                borderColor: 'rgba(255, 99, 132, 1)',
+                                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                                fill: false,
+                            },
+                            {
+                                label: 'MAE',
+                                data: mae,
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                fill: false,
+                            },
+                            {
+                                label: 'RMSE',
+                                data: rmse,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                fill: false,
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Эпоха'  // Подпись оси X
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Значение метрики'  // Подпись оси Y
+                                },
+                                beginAtZero: true  // Начинать с нуля
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Запускаем первоначальный запрос и продолжаем опрашивать сервер каждые 5 секунд
+        fetchTrainingStatus();  // Выполняем запрос при загрузке страницы
+        const statusInterval = setInterval(fetchTrainingStatus, 5000);  // Обновление каждые 5 секунд
+    </script>
+{% endblock %}
+
+
+

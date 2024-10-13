@@ -4,31 +4,43 @@
     <meta charset="UTF-8">
     <title>Регистрация</title>
     <style>
+        /* Стили для обязательных полей формы */
         .required-field::after {
             content: " *";
             color: red;
         }
+        /* Стили для текста с пояснением */
         .help-text {
             color: red;
         }
     </style>
 </head>
 <body>
+    <!-- Заголовок страницы регистрации -->
     <h2>Регистрация</h2>
 
+    <!-- Форма регистрации -->
     <form method="post">
         {% csrf_token %}
+
+        <!-- Сообщения об ошибках формы -->
         {{ form.non_field_errors }}
+
+        <!-- Поле ввода имени пользователя -->
         <div class="required-field">
             {{ form.username.label_tag }}<br>
             {{ form.username }}
             {{ form.username.errors }}
         </div>
+
+        <!-- Поле ввода email -->
         <div class="required-field">
             {{ form.email.label_tag }}<br>
             {{ form.email }}
             {{ form.email.errors }}
         </div>
+
+        <!-- Поля ввода пароля -->
         <div class="required-field">
             {{ form.password1.label_tag }}<br>
             {{ form.password1 }}
@@ -39,6 +51,8 @@
             {{ form.password2 }}
             {{ form.password2.errors }}
         </div>
+
+        <!-- Поля для ввода имени и фамилии -->
         <div class="required-field">
             {{ form.first_name.label_tag }}<br>
             {{ form.first_name }}
@@ -49,11 +63,15 @@
             {{ form.last_name }}
             {{ form.last_name.errors }}
         </div>
+
+        <!-- Поле для ввода номера телефона -->
         <div>
             {{ form.phone_number.label_tag }}<br>
             {{ form.phone_number }}
             {{ form.phone_number.errors }}
         </div>
+
+        <!-- Поля для даты рождения и выбора пола -->
         <div class="required-field">
             {{ form.birth_date.label_tag }}<br>
             {{ form.birth_date }}
@@ -64,7 +82,8 @@
             {{ form.gender }}
             {{ form.gender.errors }}
         </div>
-        <!-- Добавляем необязательные поля -->
+
+        <!-- Необязательные поля -->
         <div>
             {{ form.middle_name.label_tag }}<br>
             {{ form.middle_name }}
@@ -91,12 +110,14 @@
             {{ form.telegram.errors }}
         </div>
 
-        <!-- Сообщение о необходимости заполнения обязательных полей -->
+        <!-- Пояснение к обязательным полям -->
         <p class="help-text">Поля, помеченные *, обязательны для заполнения.</p>
 
+        <!-- Кнопка для отправки формы регистрации -->
         <button type="submit">Зарегистрироваться</button>
     </form>
 
+    <!-- Ссылка для уже зарегистрированных пользователей -->
     <p>Уже зарегистрированы? <a href="{% url 'login' %}">Войдите</a></p>
 </body>
 </html>

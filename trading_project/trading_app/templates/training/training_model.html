@@ -1,0 +1,152 @@
+{% extends 'training/training_base.html' %}
+
+{% block training_content %}
+    <!-- Заголовок страницы обучения модели -->
+    <h1>Обучение торговой модели</h1>
+
+    <!-- Форма для ввода параметров обучения и запуска процесса -->
+    <form id="training-form" method="post">
+        {% csrf_token %}
+        {{ form.as_p }} <!-- Отображение формы с параметрами обучения -->
+        <button type="submit">Начать обучение</button>
+    </form>
+
+    <!-- Блок для отображения прогресса обучения -->
+    <div id="training-progress" style="display: none;">
+        <h2>Прогресс обучения</h2>
+        <p>Статус: <span id="status">Ожидание</span></p>
+        <p>Прогресс: <span id="progress">0%</span></p>
+        <p>MSE: <span id="mse">0</span></p>
+        <p>MAE: <span id="mae">0</span></p>
+        <p>RMSE: <span id="rmse">0</span></p>
+        <canvas id="training-chart" width="400" height="200"></canvas> <!-- График для отображения метрик -->
+    </div>
+
+    <!-- Подключение библиотеки Chart.js для графиков -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Обработчик отправки формы
+        document.getElementById('training-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var form = this;
+
+            // Отключаем кнопку отправки, чтобы предотвратить повторные отправки формы
+            var submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+
+            // Отправляем форму через AJAX-запрос
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '{% url "training_model" %}');
+            xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            xhr.responseType = 'json';
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    var response = xhr.response;
+                    if (response.success) {
+                        // Если успешно, скрываем форму и отображаем прогресс обучения
+                        form.style.display = 'none';
+                        document.getElementById('training-progress').style.display = 'block';
+
+                        // Начинаем обновление прогресса
+                        var trainingSessionId = response.training_session_id;
+                        startTrainingProgress(trainingSessionId);
+                    } else {
+                        alert('Ошибка: ' + JSON.stringify(response.errors)); // Отображаем ошибки, если они есть
+                        submitButton.disabled = false;
+                    }
+                } else {
+                    alert('Произошла ошибка при отправке данных.');
+                    submitButton.disabled = false;
+                }
+            };
+            xhr.onerror = function() {
+                alert('Произошла ошибка при отправке запроса.');
+                submitButton.disabled = false;
+            };
+            xhr.send(new FormData(form));
+        });
+
+        // Функция для начала отслеживания прогресса обучения
+        function startTrainingProgress(trainingSessionId) {
+            var statusElement = document.getElementById('status');
+            var progressElement = document.getElementById('progress');
+            var mseElement = document.getElementById('mse');
+            var maeElement = document.getElementById('mae');
+            var rmseElement = document.getElementById('rmse');
+            var ctx = document.getElementById('training-chart').getContext('2d');
+            var chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'MSE',
+                            data: [],
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: false,
+                        },
+                        {
+                            label: 'MAE',
+                            data: [],
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            fill: false,
+                        },
+                        {
+                            label: 'RMSE',
+                            data: [],
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            fill: false,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { title: { display: true, text: 'Эпоха' } },
+                        y: { title: { display: true, text: 'Значение метрики' }, beginAtZero: true }
+                    }
+                }
+            });
+
+            // Функция для обновления прогресса обучения
+            function updateProgress() {
+                fetch(`/training/status/?id=${trainingSessionId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Обновление статуса и прогресса
+                        statusElement.textContent = `Статус: ${data.status_display}`;
+                        progressElement.textContent = `Прогресс: ${data.progress}%`;
+                        mseElement.textContent = `MSE: ${data.mse}`;
+                        maeElement.textContent = `MAE: ${data.mae}`;
+                        rmseElement.textContent = `RMSE: ${data.rmse}`;
+
+                        // Обновление данных на графике
+                        if (data.history && data.history.length > 0) {
+                            const lastEntry = data.history[data.history.length - 1];
+                            const epochLabel = 'Эпоха ' + lastEntry.epoch;
+                            chart.data.labels.push(epochLabel);
+                            chart.data.datasets[0].data.push(lastEntry.mse);
+                            chart.data.datasets[1].data.push(lastEntry.mae);
+                            chart.data.datasets[2].data.push(lastEntry.rmse);
+                            chart.update();
+                        }
+
+                        // Остановка обновления прогресса при завершении или ошибке
+                        if (data.status === 'completed' || data.status === 'failed') {
+                            clearInterval(statusInterval);
+                        }
+                    })
+                    .catch(error => console.error('Ошибка при получении статуса:', error));
+            }
+
+            var statusInterval = setInterval(updateProgress, 2000); // Обновляем прогресс каждые 2 секунды
+        }
+    </script>
+{% endblock %}
+
+

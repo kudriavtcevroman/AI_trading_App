@@ -4,36 +4,139 @@
     <meta charset="UTF-8">
     <title>{% block title %}Торговое приложение{% endblock %}</title>
     <style>
+        /* Стили для навигационной панели */
         nav {
             background-color: #333;
             padding: 10px;
+            position: relative;
         }
-        nav a {
+        nav ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+        }
+        nav ul li {
+            display: inline-block;
+            position: relative;
+        }
+        nav ul li a {
             color: white;
-            margin-right: 20px;
+            padding: 10px 20px;
             text-decoration: none;
+            display: block;
         }
-        nav a:hover {
-            text-decoration: underline;
+        nav ul li a:hover {
+            background-color: #555;
         }
-        .container {
-            margin-top: 20px;
+
+        /* Стили для подменю */
+        nav ul li ul {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #333;
+            min-width: 200px;
+            z-index: 1000;
+        }
+        nav ul li:hover ul {
+            display: block;
+        }
+        nav ul li ul li {
+            display: block;
+        }
+        nav ul li ul li a {
+            padding: 10px 20px;
+            color: white;
+        }
+        nav ul li ul li a:hover {
+            background-color: #555;
+        }
+
+        /* Общие стили для кнопок */
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            font-size: 14px;
+            color: #fff;
+            background-color: #007bff;
+            text-decoration: none;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        /* Стили для списка наборов данных */
+        .list-group {
+            list-style-type: none;
+            padding: 0;
+        }
+        .list-group-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* Классы для отступов */
+        .mt-4 {
+            margin-top: 1.5rem;
+        }
+        .mt-2 {
+            margin-top: 0.5rem;
+        }
+        .ml-2 {
+            margin-left: 0.5rem;
+        }
+
+        /* Стили для кнопок внутри подменю */
+        .training-navigation .btn {
+            margin-right: 0;
+            margin-bottom: 0;
         }
     </style>
 </head>
 <body>
 
+    <!-- Навигационная панель для основных разделов сайта -->
     <nav>
-        <a href="{% url 'home' %}">Главная страница</a>
-        <a href="{% url 'profile' %}">Личный кабинет</a>
-        <a href="{% url 'training_home' %}">Обучение торговой нейросети</a>
-        <a href=" {% url 'testing_model' %}">Тестирование торговой нейросети</a>
-        <a href="#">Торговая сессия</a>
+        <ul>
+            <li><a href="{% url 'home' %}">Главная страница</a></li>
+            <li><a href="{% url 'profile' %}">Личный кабинет</a></li>
+            <li><a href="{% url 'upload_data' %}">Загрузка данных</a></li>
+            <li>
+                <a href="{% url 'training_home' %}">Обучение торговой нейросети</a>
+                <ul>
+                    <!-- Подменю для обучения и просмотра сохраненных моделей -->
+                    <li><a href="{% url 'training_model' %}">Обучение торговой модели</a></li>
+                    <li><a href="{% url 'saved_models' %}">Сохраненные модели</a></li>
+                </ul>
+            </li>
+            <li><a href="{% url 'testing_model' %}">Тестирование торговой нейросети</a></li>
+            <li><a href="#">Торговая сессия</a></li>
+        </ul>
     </nav>
 
+    <!-- Основной контейнер для отображения контента страницы -->
     <div class="container">
         {% block content %}
-        <!-- Контент страницы -->
+        <!-- Контент страницы будет вставляться сюда -->
         {% endblock %}
     </div>
 

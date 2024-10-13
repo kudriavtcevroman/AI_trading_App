@@ -1,9 +1,12 @@
-{% extends 'training_base.html' %}
+{% extends 'base.html' %}
 
-{% block training_content %}
-<h1>Загрузка данных для обучения</h1>
+{% block title %}Загрузка данных{% endblock %}
 
-<!-- Отображение сообщений -->
+{% block content %}
+
+<h1>Загрузка данных для обучения и тестирования торговых моделей</h1>
+
+<!-- Отображение сообщений пользователю, таких как ошибки или успешные действия -->
 {% if messages %}
 <ul>
     {% for message in messages %}
@@ -12,6 +15,7 @@
 </ul>
 {% endif %}
 
+<!-- Форма для загрузки данных -->
 <form method="post">
     {% csrf_token %}
 
@@ -24,7 +28,7 @@
         {% endfor %}
     </datalist>
 
-    <!-- Выбор таймфрейма -->
+    <!-- Выбор тайм-фрейма для данных -->
     <label for="timeframe">Выберите тайм-фрейм:</label>
     <select id="timeframe" name="timeframe" required>
         <option value="" selected>-- Выберите тайм-фрейм --</option>
@@ -40,10 +44,11 @@
     <label for="end_date">Конечная дата:</label>
     <input type="date" id="end_date" name="end_date" required>
 
-    <!-- Кнопка загрузки данных -->
-    <button type="submit">Загрузить данные</button>
+    <!-- Кнопка для загрузки данных -->
+    <button class="btn btn-secondary" type="submit">Загрузить данные</button>
 </form>
 
+<!-- Отображение загруженных пользователем наборов данных -->
 <h2>Ваши загруженные данные</h2>
 
 {% if user_datasets.exists %}
@@ -59,17 +64,17 @@
                 <form method="post" action="{% url 'rename_dataset' dataset.id %}" style="display: inline;">
                     {% csrf_token %}
                     <input type="text" name="new_name" placeholder="Новое название">
-                    <button type="submit">Изменить название</button>
+                    <button class="btn btn-secondary" type="submit">Изменить название</button>
                 </form>
 
                 <!-- Форма для удаления набора данных -->
                 <form method="post" action="{% url 'delete_dataset' dataset.id %}" style="display: inline;">
                     {% csrf_token %}
-                    <button type="submit">Удалить</button>
+                    <button class="btn btn-secondary" type="submit">Удалить</button>
                 </form>
 
-                <!-- Ссылка для просмотра данных набора -->
-                <a href="{% url 'view_dataset' dataset.id %}">Посмотреть данные</a>
+                <!-- Кнопка для просмотра данных набора -->
+                <button type="button" class="btn btn-secondary" onclick="window.location.href='{% url 'view_dataset' dataset.id %}'">Посмотреть данные</button>
             </li>
         {% endfor %}
     </ul>
@@ -77,6 +82,7 @@
     <p>Нет загруженных данных</p>
 {% endif %}
 
+<!-- Скрипт для динамического обновления диапазона дат на основе выбранной торговой пары и тайм-фрейма -->
 <script>
     function updateDateRange() {
         const pair = document.getElementById('pair').value;
@@ -118,7 +124,7 @@
                     }
                 });
         } else {
-            // Если пара или таймфрейм не выбраны, сбрасываем поля дат
+            // Если пара или тайм-фрейм не выбраны, сбрасываем поля дат
             document.getElementById('start_date').min = '';
             document.getElementById('start_date').max = '';
             document.getElementById('end_date').min = '';
@@ -126,8 +132,9 @@
         }
     }
 
-    // Добавляем обработчики событий
+    // Добавляем обработчики событий для изменения пары и тайм-фрейма
     document.getElementById('pair').addEventListener('change', updateDateRange);
     document.getElementById('timeframe').addEventListener('change', updateDateRange);
 </script>
+
 {% endblock %}

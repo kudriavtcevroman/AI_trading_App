@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<title>Личный кабинет</title>
+<style>
+    .hidden {
+        display: none;
+    }
+    .profile-field, .edit-field {
+        margin-bottom: 10px;
+    }
+    label {
+        display: inline-block;
+        width: 150px;
+        text-align: right;
+        margin-right: 10px;
+    }
+    input, select {
+        width: 250px;
+    }
+    .form-container {
+        margin: 20px 0;
+    }
+    .error {
+        color: red;
+    }
+</style>
+<script>
+function toggleEdit(forceEditMode = false) {
+    var profileFields = document.querySelectorAll('.profile-field');
+    var editFields = document.querySelectorAll('.edit-field');
+    var editButton = document.getElementById('edit-button');
+    var saveButton = document.getElementById('save-button');
+
+    if (forceEditMode) {
+        profileFields.forEach(function(field) {
+            field.classList.add('hidden');
+        });
+
+        editFields.forEach(function(field) {
+            field.classList.remove('hidden');
+        });
+
+        editButton.classList.add('hidden');
+        saveButton.classList.remove('hidden');
+    } else {
+        profileFields.forEach(function(field) {
+            field.classList.toggle('hidden');
+        });
+
+        editFields.forEach(function(field) {
+            field.classList.toggle('hidden');
+        });
+
+        editButton.classList.toggle('hidden');
+        saveButton.classList.toggle('hidden');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    {% if user_form.errors or profile_form.errors or additional_info_form.errors %}
+        toggleEdit(true);
+    {% endif %}
+});
+</script>
+<body>
+
+<h1>Личный кабинет</h1>
+
+<!-- Вывод сообщений об ошибках и успешных действиях -->
+{% if messages %}
+<ul>
+    {% for message in messages %}
+    <li class="error">{{ message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<!-- ID пользователя -->
+<p><strong>ID пользователя:</strong> {{ user.id }}</p>
+
+<form method="post">
+    {% csrf_token %}
+    <div class="form-container">
+        <!-- Логин -->
+        <div>
+            <label for="{{ user_form.username.id_for_label }}">Логин:</label>
+            <span class="profile-field">{{ user.username }}</span>
+            <span class="edit-field hidden">
+                {{ user_form.username }}
+                {% if user_form.username.errors %}
+                    <div class="error">{{ user_form.username.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Имя -->
+        <div>
+            <label for="{{ user_form.first_name.id_for_label }}">Имя:</label>
+            <span class="profile-field">{{ user.first_name }}</span>
+            <span class="edit-field hidden">
+                {{ user_form.first_name }}
+                {% if user_form.first_name.errors %}
+                    <div class="error">{{ user_form.first_name.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Фамилия -->
+        <div>
+            <label for="{{ user_form.last_name.id_for_label }}">Фамилия:</label>
+            <span class="profile-field">{{ user.last_name }}</span>
+            <span class="edit-field hidden">
+                {{ user_form.last_name }}
+                {% if user_form.last_name.errors %}
+                    <div class="error">{{ user_form.last_name.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Email -->
+        <div>
+            <label for="{{ user_form.email.id_for_label }}">Email:</label>
+            <span class="profile-field">{{ user.email }}</span>
+            <span class="edit-field hidden">
+                {{ user_form.email }}
+                {% if user_form.email.errors %}
+                    <div class="error">{{ user_form.email.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Телефон -->
+        <div>
+            <label for="{{ profile_form.phone_number.id_for_label }}">Телефон:</label>
+            <span class="profile-field">{{ user_profile.phone_number|default:"Не указан" }}</span>
+            <span class="edit-field hidden">
+                {{ profile_form.phone_number }}
+                {% if profile_form.phone_number.errors %}
+                    <div class="error">{{ profile_form.phone_number.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Дата рождения -->
+        <div>
+            <label for="{{ profile_form.birth_date.id_for_label }}">Дата рождения:</label>
+            <span class="profile-field">{{ user_profile.birth_date|date:"d.m.Y" }}</span>
+            <span class="edit-field hidden">
+                {{ profile_form.birth_date }}
+                {% if profile_form.birth_date.errors %}
+                    <div class="error">{{ profile_form.birth_date.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Пол -->
+        <div>
+            <label for="{{ profile_form.gender.id_for_label }}">Пол:</label>
+            <span class="profile-field">{{ user_profile.get_gender_display }}</span>
+            <span class="edit-field hidden">
+                {{ profile_form.gender }}
+                {% if profile_form.gender.errors %}
+                    <div class="error">{{ profile_form.gender.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Отчество -->
+        <div>
+            <label for="{{ additional_info_form.middle_name.id_for_label }}">Отчество:</label>
+            <span class="profile-field">{{ user_additional_info.middle_name|default:"Не указано" }}</span>
+            <span class="edit-field hidden">
+                {{ additional_info_form.middle_name }}
+                {% if additional_info_form.middle_name.errors %}
+                    <div class="error">{{ additional_info_form.middle_name.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Никнейм -->
+        <div>
+            <label for="{{ additional_info_form.nickname.id_for_label }}">Никнейм:</label>
+            <span class="profile-field">{{ user_additional_info.nickname|default:"Не указан" }}</span>
+            <span class="edit-field hidden">
+                {{ additional_info_form.nickname }}
+                {% if additional_info_form.nickname.errors %}
+                    <div class="error">{{ additional_info_form.nickname.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Страна -->
+        <div>
+            <label for="{{ additional_info_form.country.id_for_label }}">Страна:</label>
+            <span class="profile-field">{{ user_additional_info.country|default:"Не указана" }}</span>
+            <span class="edit-field hidden">
+                {{ additional_info_form.country }}
+                {% if additional_info_form.country.errors %}
+                    <div class="error">{{ additional_info_form.country.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Город -->
+        <div>
+            <label for="{{ additional_info_form.city.id_for_label }}">Город:</label>
+            <span class="profile-field">{{ user_additional_info.city|default:"Не указан" }}</span>
+            <span class="edit-field hidden">
+                {{ additional_info_form.city }}
+                {% if additional_info_form.city.errors %}
+                    <div class="error">{{ additional_info_form.city.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+
+        <!-- Telegram -->
+        <div>
+            <label for="{{ additional_info_form.telegram.id_for_label }}">Telegram:</label>
+            <span class="profile-field">{{ user_additional_info.telegram|default:"Не указан" }}</span>
+            <span class="edit-field hidden">
+                {{ additional_info_form.telegram }}
+                {% if additional_info_form.telegram.errors %}
+                    <div class="error">{{ additional_info_form.telegram.errors }}</div>
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- Кнопки редактирования и сохранения -->
+    <button id="edit-button" type="button" onclick="toggleEdit()">Редактировать данные</button>
+    <button id="save-button" class="hidden" type="submit">Сохранить изменения</button>
+</form>
+
+<!-- Кнопка для изменения пароля -->
+<form method="get" action="{% url 'password_change' %}">
+    <button type="submit">Изменить пароль</button>
+</form>
+
+<!-- Кнопка для выхода из аккаунта -->
+<form method="post" action="{% url 'logout' %}">
+    {% csrf_token %}
+    <button type="submit">Выйти</button>
+</form>
+<form method="post" action="{% url 'delete_account' %}">
+    {% csrf_token %}
+    <button type="submit">Удалить аккаунт</button>
+</form>
+
+</body>
+{% endblock %}

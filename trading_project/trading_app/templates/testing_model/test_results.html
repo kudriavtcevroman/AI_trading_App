@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <!-- Заголовок страницы с названием модели -->
+    <h1>Результаты тестирования модели "{{ trained_model.name }}"</h1>
+
+    <!-- Контейнер для отображения графика -->
+    <div id="chart-container" style="height: 500px;"></div>
+
+    <!-- Подключение библиотеки ApexCharts для построения графика -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+    <script>
+        // Опции для графика (тип: свечной график)
+        var options = {
+            chart: {
+                type: 'candlestick',
+                height: 500
+            },
+            series: [{
+                data: {{ chart_data|safe }}  <!-- Данные для отображения графика -->
+            }],
+            xaxis: {
+                type: 'datetime'  <!-- Формат оси X (время) -->
+            }
+        };
+
+        // Создание и отрисовка графика
+        var chart = new ApexCharts(document.querySelector("#chart-container"), options);
+        chart.render();
+
+        // Добавление торговых сигналов на график
+        var signals = {{ signals_data|safe }};
+        signals.forEach(function(signal) {
+            chart.addXaxisAnnotation({
+                x: signal.time,
+                label: {
+                    text: signal.trade_type,  <!-- Тип торгового сигнала (LONG, SHORT и т.д.) -->
+                    style: {
+                        color: '#fff',
+                        background: signal.color  <!-- Цвет сигнала (зависит от типа сделки) -->
+                    }
+                },
+                borderColor: signal.color,
+                strokeDashArray: 0,
+                borderWidth: 2
+            });
+        });
+    </script>
+{% endblock %}

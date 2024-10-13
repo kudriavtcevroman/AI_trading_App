@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* Стили для таблицы данных */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+    }
+    th, td {
+        border: 1px solid #dddddd;
+        text-align: center;
+        padding: 8px;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    /* Стили для кнопок */
+    .btn {
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        text-align: center;
+        text-decoration: none;
+        outline: none;
+        color: #fff;
+        background-color: #6c757d;
+        border: none;
+        border-radius: 5px;
+        box-shadow: 0 4px #999;
+    }
+    .btn:hover {
+        background-color: #5a6268;
+    }
+    .btn:active {
+        background-color: #5a6268;
+        box-shadow: 0 2px #666;
+        transform: translateY(2px);
+    }
+    .mb-3 {
+        margin-bottom: 1rem;
+    }
+    .mt-3 {
+        margin-top: 1rem;
+    }
+</style>
+
+<!-- Заголовок с названием набора данных -->
+<h2>Просмотр данных для набора {{ dataset.name }}</h2>
+
+<!-- Кнопка "Назад" для возвращения к предыдущей странице -->
+<button type="button" class="btn mb-3" onclick="window.location.href='{% url 'upload_data' %}'">Назад</button>
+
+<!-- Таблица для отображения данных набора -->
+<table>
+    <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>Open</th>
+            <th>High</th>
+            <th>Low</th>
+            <th>Close</th>
+            <th>Volume</th>
+        </tr>
+    </thead>
+    <tbody>
+        <!-- Проходим по данным и выводим каждую запись в строке таблицы -->
+        {% for row in data %}
+        <tr>
+            <td>{{ row.timestamp }}</td>
+            <td>{{ row.open_price }}</td>
+            <td>{{ row.high_price }}</td>
+            <td>{{ row.low_price }}</td>
+            <td>{{ row.close_price }}</td>
+            <td>{{ row.volume }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Дополнительная кнопка "Назад" под таблицей -->
+<button type="button" class="btn mt-3" onclick="window.location.href='{% url 'upload_data' %}'">Назад</button>
+
+{% endblock %}

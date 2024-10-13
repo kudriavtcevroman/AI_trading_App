@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <!-- Заголовок страницы с информацией о модели и наборе данных -->
+    <h1>Тестирование модели "{{ trained_model.name }}" на наборе данных "{{ dataset.name }}"</h1>
+
+    <!-- Контейнер для отображения графика -->
+    <div id="chart-container" style="width: 100%; height: 500px;"></div>
+
+    <!-- Кнопки для начала и завершения тестирования -->
+    <button id="start-testing-btn" class="btn btn-primary">Начать тестирование</button>
+    <button id="stop-testing-btn" class="btn btn-secondary" disabled>Закончить тестирование</button>
+
+    <!-- Контейнер для отображения списка торговых сигналов -->
+    <div id="signals-container">
+        <h2>Торговые сигналы</h2>
+        <ul id="signals-list"></ul>
+    </div>
+
+    <!-- Подключение библиотеки для работы с графиками -->
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+    <script>
+        // Инициализация графика
+        const chartContainer = document.getElementById('chart-container');
+        const chart = LightweightCharts.createChart(chartContainer, {
+            width: chartContainer.clientWidth,
+            height: 500,
+        });
+        const candleSeries = chart.addCandlestickSeries();
+
+        // Загрузка данных для графика
+        const chartData = {{ chart_data|safe }};
+        let displayedData = [];
+
+        // Переменные для управления тестированием
+        let testingInProgress = false;
+        let currentIndex = 0;
+        let testingInterval = null;
+        const signalsList = document.getElementById('signals-list');
+        let markers = []; // Массив для маркеров сигналов
+
+        // Интервал между обновлениями (по умолчанию 1 секунда)
+        const intervalMs = {{ interval_ms }} || 1000;
+
+        // Обработчик для кнопки "Начать тестирование"
+        document.getElementById('start-testing-btn').addEventListener('click', function() {
+            if (!testingInProgress) {
+                testingInProgress = true;
+                this.disabled = true;
+                document.getElementById('stop-testing-btn').disabled = false;
+
+                // Отправляем запрос на сервер для запуска тестирования
+                fetch("{% url 'start_model_testing' %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        startTesting();
+                    } else {
+                        alert("Ошибка запуска тестирования: " + data.message);
+                        this.disabled = false;
+                        document.getElementById('stop-testing-btn').disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error("Ошибка при запуске тестирования:", error);
+                    this.disabled = false;
+                    document.getElementById('stop-testing-btn').disabled = true;
+                });
+            }
+        });
+
+        // Обработчик для кнопки "Закончить тестирование"
+        document.getElementById('stop-testing-btn').addEventListener('click', function() {
+            if (testingInProgress) {
+                testingInProgress = false;
+                this.disabled = true;
+                document.getElementById('start-testing-btn').disabled = false;
+                stopTesting();
+            }
+        });
+
+        // Функция для запуска тестирования с интервалом
+        function startTesting() {
+            markers = [];
+            candleSeries.setMarkers(markers);
+            signalsList.innerHTML = ''; // Очищаем список сигналов
+            displayedData = [];
+            currentIndex = 0;
+            testingInterval = setInterval(function() {
+                if (currentIndex < chartData.length) {
+                    const bar = chartData[currentIndex];
+                    displayedData.push(bar);
+                    candleSeries.setData(displayedData);
+
+                    // Получаем торговые сигналы с сервера
+                    fetchSignal(bar.time);
+
+                    currentIndex++;
+                } else {
+                    stopTesting(); // Останавливаем тестирование, если данные закончились
+                }
+            }, intervalMs);
+        }
+
+        // Функция для остановки тестирования
+        function stopTesting() {
+            clearInterval(testingInterval);
+        }
+
+        // Функция для получения торговых сигналов с сервера
+        function fetchSignal(time) {
+            fetch("{% url 'get_signal' %}?model_id={{ trained_model.id }}&time=" + time)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.signals && data.signals.length > 0) {
+                        data.signals.forEach(signal => {
+                            markers.push({
+                                time: signal.time,
+                                position: 'aboveBar',
+                                color: signal.color,
+                                shape: getMarkerShape(signal.trade_type),
+                                text: signal.trade_type,
+                            });
+                            candleSeries.setMarkers(markers);
+
+                            // Добавляем сигнал в список
+                            const listItem = document.createElement('li');
+                            listItem.textContent = `${new Date(signal.time).toLocaleString()} - ${signal.trade_type} по цене ${signal.price}`;
+                            signalsList.appendChild(listItem);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error("Ошибка при получении сигнала:", error);
+                });
+        }
+
+        // Функция для определения формы маркера на графике по типу торгового сигнала
+        function getMarkerShape(trade_type) {
+            if (trade_type === 'LONG OPEN') {
+                return 'arrowUp';
+            } else if (trade_type === 'SHORT OPEN') {
+                return 'arrowDown';
+            } else if (trade_type === 'LONG CLOSE' || trade_type === 'SHORT CLOSE') {
+                return 'circle';
+            } else if (trade_type === 'STOP LOSS') {
+                return 'arrowDown';
+            } else {
+                return 'arrowUp'; // По умолчанию
+            }
+        }
+
+        // Установка данных для графика при загрузке страницы
+        window.onload = function() {
+            candleSeries.setData(chartData);
+        };
+    </script>
+{% endblock %}
